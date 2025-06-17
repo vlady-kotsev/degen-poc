@@ -51,6 +51,9 @@ class _MyHomePageState extends State<MyHomePage> {
   // ImagePicker instance
   final ImagePicker _picker = ImagePicker();
 
+  // Holds the edited bytes
+  Uint8List? _editedBytes;
+
   // Launches the camera, captures an image and updates UI
   Future<void> _pickImageFromCamera() async {
     final XFile? pickedFile = await _picker.pickImage(
@@ -161,6 +164,10 @@ class _MyHomePageState extends State<MyHomePage> {
         name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
       );
       if (mounted) {
+        setState(() {
+          _editedBytes = edited;
+          _imageFile = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -170,6 +177,16 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     }
+  }
+
+  Widget _preview() {
+    if (_editedBytes != null) {
+      return Image.memory(_editedBytes!, height: 200);
+    }
+    if (_imageFile != null) {
+      return Image.file(File(_imageFile!.path), height: 200);
+    }
+    return const SizedBox();
   }
 
   @override
@@ -208,12 +225,7 @@ class _MyHomePageState extends State<MyHomePage> {
           // action in the IDE, or press "p" in the console), to see the
           // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            if (_imageFile != null) ...[
-              const SizedBox(height: 20),
-              Image.file(File(_imageFile!.path), height: 200),
-            ],
-          ],
+          children: <Widget>[_preview()],
         ),
       ),
       floatingActionButton: Column(
