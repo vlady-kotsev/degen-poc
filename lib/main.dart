@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:pro_image_editor/pro_image_editor.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,26 +17,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Degen',
+      title: 'GMCam',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'GM Cam'),
     );
   }
 }
@@ -119,6 +105,73 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _openEditorAndSave() async {
+    if (_imageFile == null) return;
+
+    // 1. Open the editor and wait for the user to finish
+    final edited = await Navigator.push<Uint8List>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProImageEditor.file(
+          File(_imageFile!.path),
+          callbacks: ProImageEditorCallbacks(
+            onImageEditingComplete: (bytes) async =>
+                Navigator.pop(context, bytes),
+          ),
+          configs: ProImageEditorConfigs(
+            paintEditor: const PaintEditorConfigs(enabled: false),
+            //textEditor: const TextEditorConfigs(enabled: false),
+            //cropRotateEditor: const CropRotateEditorConfigs(enabled: false),
+            filterEditor: const FilterEditorConfigs(enabled: false),
+            blurEditor: const BlurEditorConfigs(enabled: false),
+            emojiEditor: const EmojiEditorConfigs(enabled: false),
+            stickerEditor: StickerEditorConfigs(
+              enabled: true,
+              builder: (setLayer, scroll) {
+                return GridView.builder(
+                  controller: scroll,
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 120,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                  ),
+                  itemCount: 6,
+                  itemBuilder: (context, index) {
+                    final url = 'https://picsum.photos/id/${index + 100}/200';
+                    return GestureDetector(
+                      onTap: () => setLayer(
+                        WidgetLayer(widget: Image.network(url)),
+                      ), // add to canvas
+                      child: Image.network(url, fit: BoxFit.cover),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 2. Save the returned bytes with the code you already have
+    if (edited != null) {
+      final result = await ImageGallerySaverPlus.saveImage(
+        edited,
+        name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (result['isSuccess'] ?? false) ? 'Saved!' : 'Could not save',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -175,11 +228,11 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(height: 16),
           if (_imageFile != null)
             FloatingActionButton(
-              onPressed: _saveImageToGallery,
-              tooltip: 'Save to gallery',
-              heroTag: 'save',
-              backgroundColor: Colors.green,
-              child: const Icon(Icons.download),
+              onPressed: _openEditorAndSave,
+              tooltip: 'Edit and Save',
+              heroTag: 'edit',
+              backgroundColor: Colors.blue,
+              child: const Icon(Icons.edit),
             ),
         ],
       ), // This trailing comma makes auto-formatting nicer for build methods.
