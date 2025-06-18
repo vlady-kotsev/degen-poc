@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 
 void main() {
@@ -54,6 +54,9 @@ class _MyHomePageState extends State<MyHomePage> {
   // Holds the edited bytes
   Uint8List? _editedBytes;
 
+  // keep a log of all stickers the user placed
+  final List<String> _appliedStickerUrls = [];
+
   // Launches the camera, captures an image and updates UI
   Future<void> _pickImageFromCamera() async {
     final XFile? pickedFile = await _picker.pickImage(
@@ -66,47 +69,46 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // ✨ NEW • save the currently-captured picture to the gallery
-  Future<void> _saveImageToGallery() async {
-    if (_imageFile == null) return;
+  // Future<void> _saveImageToGallery() async {
+  //   if (_imageFile == null) return;
 
-    // Ask for the storage / media permission on Android (no-op on iOS)
-    if (Platform.isAndroid) {
-      if (await Permission.photos.request().isGranted) {
-        // API 33+
-        final bytes = await File(_imageFile!.path).readAsBytes();
-        final result = await ImageGallerySaverPlus.saveImage(
-          Uint8List.fromList(bytes),
-          name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
-          quality: 100,
-        );
+  //   // Ask for the storage / media permission on Android (no-op on iOS)
+  //   if (Platform.isAndroid) {
+  //     if (await Permission.photos.request().isGranted) {
+  //       // API 33+
+  //       final bytes = await File(_imageFile!.path).readAsBytes();
+  //       final result = await ImageGallerySaverPlus.saveImage(
+  //         Uint8List.fromList(bytes),
+  //         name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
+  //         quality: 100,
+  //       );
 
-        if (!mounted) return;
-        final isSuccess = (result['isSuccess'] as bool?) ?? false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isSuccess ? 'Saved to gallery' : 'Could not save'),
-          ),
-        );
-      } else if (await Permission.storage.request().isGranted) {
-        // API <33
-        final bytes = await File(_imageFile!.path).readAsBytes();
-        final result = await ImageGallerySaverPlus.saveImage(
-          Uint8List.fromList(bytes),
-          name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
-          quality: 100,
-        );
+  //       if (!mounted) return;
+  //       final isSuccess = (result['isSuccess'] as bool?) ?? false;
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(isSuccess ? 'Saved to gallery' : 'Could not save'),
+  //         ),
+  //       );
+  //     } else if (await Permission.storage.request().isGranted) {
+  //       // API <33
+  //       final bytes = await File(_imageFile!.path).readAsBytes();
+  //       final result = await ImageGallerySaverPlus.saveImage(
+  //         Uint8List.fromList(bytes),
+  //         name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
+  //         quality: 100,
+  //       );
 
-        if (!mounted) return;
-        final isSuccess = (result['isSuccess'] as bool?) ?? false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isSuccess ? 'Saved to gallery' : 'Could not save'),
-          ),
-        );
-      }
-    }
-  }
+  //       if (!mounted) return;
+  //       final isSuccess = (result['isSuccess'] as bool?) ?? false;
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(isSuccess ? 'Saved to gallery' : 'Could not save'),
+  //         ),
+  //       );
+  //     }
+  //   }
+  // }
 
   Future<void> _openEditorAndSave() async {
     if (_imageFile == null) return;
@@ -140,12 +142,16 @@ class _MyHomePageState extends State<MyHomePage> {
                     crossAxisSpacing: 10,
                   ),
                   itemCount: 6,
-                  itemBuilder: (context, index) {
+                  itemBuilder: (_, index) {
                     final url = 'https://picsum.photos/id/${index + 100}/200';
+
                     return GestureDetector(
-                      onTap: () => setLayer(
-                        WidgetLayer(widget: Image.network(url)),
-                      ), // add to canvas
+                      onTap: () {
+                        // 1. remember which sticker was chosen
+                        _appliedStickerUrls.add(url);
+                        // 2. add the sticker to the canvas
+                        setLayer(WidgetLayer(widget: Image.network(url)));
+                      },
                       child: Image.network(url, fit: BoxFit.cover),
                     );
                   },
@@ -163,6 +169,9 @@ class _MyHomePageState extends State<MyHomePage> {
         edited,
         name: 'degen_${DateTime.now().millisecondsSinceEpoch}',
       );
+      for (var url in _appliedStickerUrls) {
+        print("URLL: $url");
+      }
       if (mounted) {
         setState(() {
           _editedBytes = edited;
